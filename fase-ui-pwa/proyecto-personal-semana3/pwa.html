@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#f97316">
+  <title>MATERMED PWA Móvil Blindada (Semana 3)</title>
+
+  <!-- PWA Manifest & App Icons -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Estilos PWA Cero-Scroll -->
+  <link rel="stylesheet" href="pwa.css">
+
+  <!-- jQuery 3.7.1 Oficial -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <!-- Lógica PWA, Anti-XSS y Cola Quirúrgica -->
+  <script src="pwa.js" defer></script>
+</head>
+
+<body>
+
+  <!-- Contenedor Principal Fijo de Pantalla Completa (Zero-Scroll App Viewport) -->
+  <div class="app-wrapper">
+
+    <!-- ======================================================================
+         1. BARRA SUPERIOR FIJA (TOP HUD)
+         ====================================================================== -->
+    <header class="top-hud">
+      <div class="hud-profile">
+        <div class="avatar-badge">👨‍⚕️</div>
+        <div class="user-meta">
+          <div class="user-name">
+            <span>Dr. Quirúrgico</span>
+            <span class="lvl-tag">NV. 30</span>
+          </div>
+          <span class="user-sub">PWA Blindada (Semana 3)</span>
+        </div>
+      </div>
+
+      <div class="hud-resources">
+        <div class="resource-pill resource-gold" title="Cajas de Suturas en Reserva">
+          <span>📦</span> <span id="hudStock">2,983</span>
+        </div>
+
+        <div class="resource-pill" title="Total Cotizado Actual">
+          <span>💰</span> <span id="hudTotal">180</span> BOB
+        </div>
+
+        <div id="estadoRed" class="resource-pill resource-net" title="Estado de Conexión Service Worker">
+          🟢 En Línea
+        </div>
+
+        <!-- Botón para alternar a Vista de Computadora -->
+        <a href="index.html" class="btn-pc-switch" title="Cambiar a la Vista de Computadora">
+          💻 Vista PC
+        </a>
+
+        <button id="themeToggleBtn" class="btn-hud-action" title="Alternar Modo Oscuro/Claro">🌙</button>
+      </div>
+    </header>
+
+    <!-- ======================================================================
+         2. ÁREA CENTRAL DINÁMICA (SCREEN VIEWPORT - CERO SCROLL)
+         ====================================================================== -->
+    <main class="main-viewport">
+
+      <!-- ==================================================================
+           VISTA 1: SHOWCASE QUIRÚRGICO (HERO DASHBOARD)
+           ================================================================== -->
+      <section id="pane-showcase" class="view-pane active">
+        <div class="showcase-grid">
+
+          <div class="showcase-featured">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span
+                  style="background: #7c3aed; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">
+                  Absorbible Destacada
+                </span>
+                <span style="color: #38bdf8; font-size: 11px; font-weight: 700;">CALIBRE USP 2-0</span>
+              </div>
+              <h3 style="font-size: 16px; margin-top: 4px; color: #ffffff;" id="featuredTitle">Poliglactina 910 (Tipo
+                Vicryl)</h3>
+              <p style="font-size: 11px; color: var(--text-muted); line-height: 1.3;">Sutura sintética trenzada de alta
+                resistencia a la tracción e hidrólisis fisiológica.</p>
+            </div>
+
+            <div class="featured-img-box">
+              <img id="featuredImg" src="images/poliglactina.svg" alt="Sutura Poliglactina 910" loading="lazy">
+            </div>
+
+            <div>
+              <div class="featured-stats">
+                <div class="stat-item">
+                  <small>Fuerza Tensil</small>
+                  <strong>75% (14d)</strong>
+                </div>
+                <div class="stat-item">
+                  <small>Aguja</small>
+                  <strong>1/2 Círc. 26mm</strong>
+                </div>
+                <div class="stat-item">
+                  <small>Absorción</small>
+                  <strong>56-70 Días</strong>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <small style="color: var(--text-muted); font-size: 10px; display: block;">Precio Unitario /
+                    Caja:</small>
+                  <span style="font-size: 16px; font-weight: 900; color: #38bdf8;">180 BOB</span>
+                </div>
+                <button class="btn-add-mini" style="padding: 8px 16px; font-size: 12px;"
+                  onclick="irACalculador('Poliglactina 910', 180)">
+                  🛒 Configurar Pedido
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="showcase-side">
+            <div class="ssr-banner" id="contenedorMenu" data-hidratado="false">
+              <div>
+                <strong>⚡ Hidratación SSR:</strong>
+                <span style="color: #94a3b8; display: block; font-size: 10px;">DOM plano enlazado progresivamente a
+                  jQuery.</span>
+              </div>
+              <button id="btnPWA" class="btn-add-mini"
+                style="background: #0284c7; padding: 4px 8px; font-size: 10px;">Cargando...</button>
+            </div>
+
+            <div class="quick-card">
+              <h4>🎨 Selector de Línea (Reto PRO)</h4>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">
+                Alterna la estética y suturas destacadas con jQuery:
+              </p>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-theme-selector" data-theme="absorbible"
+                  style="flex: 1; padding: 6px; font-size: 11px; background: #6d28d9; border: none; color: #fff; border-radius: 6px; cursor: pointer;">🟣
+                  Absorbibles</button>
+                <button class="btn-theme-selector" data-theme="no-absorbible"
+                  style="flex: 1; padding: 6px; font-size: 11px; background: #16a34a; border: none; color: #fff; border-radius: 6px; cursor: pointer;">🟢
+                  No Absorbibles</button>
+                <button class="btn-theme-selector" data-theme="cardio"
+                  style="flex: 1; padding: 6px; font-size: 11px; background: #2563eb; border: none; color: #fff; border-radius: 6px; cursor: pointer;">🔵
+                  Cardio</button>
+              </div>
+            </div>
+
+            <div class="quick-card" style="background: rgba(15, 23, 42, 0.7);">
+              <h4>🛡️ Blindaje Semana 3</h4>
+              <p style="font-size: 11px; color: #cbd5e1; line-height: 1.4;">
+                • Prevención total contra inyección XSS con <code>.text()</code>.<br>
+                • 4 puntos críticos: botones 44px, truncado flex.<br>
+                • Eliminación dinámica por Event Bubbling.<br>
+                • Tree Shaking y Offline-First con Service Worker.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================================================================
+           VISTA 2: CATÁLOGO ASÍNCRONO (15 SUTURAS FETCH + LAZY LOADING)
+           ================================================================== -->
+      <section id="pane-catalogo" class="view-pane">
+        <div class="catalog-header-bar">
+          <input type="text" id="catalogSearch" class="catalog-search-input"
+            placeholder="🔍 Filtrar por nombre, calibre o aguja en las 15 suturas...">
+          <small style="color: #38bdf8; font-size: 11px; font-weight: 700; white-space: nowrap;">15 Suturas
+            Activas</small>
+        </div>
+
+        <div id="asyncCatalogGrid" class="catalog-scroll-grid">
+          <div style="color: var(--text-muted); font-size: 12px; padding: 20px; text-align: center;">
+            Cargando catálogo asíncrono con Fetch API...
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================================================================
+           VISTA 3: FILTRO DINÁMICO DE 3 CAPAS EN CASCADA
+           ================================================================== -->
+      <section id="pane-filtro" class="view-pane" style="align-items: center; justify-content: center;">
+        <div class="cascade-box">
+          <h3
+            style="font-size: 15px; color: #ffffff; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>🔍</span> Filtro Médico en Cascada de 3 Capas
+          </h3>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px;">
+            Seleccione especialidad y plano para obtener la recomendación técnica oficial:
+          </p>
+
+          <label>Capa 1: Especialidad Quirúrgica:</label>
+          <select id="capa1">
+            <option value="">-- Elija Especialidad --</option>
+            <option value="cirugia-general">Cirugía General y Digestiva</option>
+            <option value="cardiovascular">Cirugía Cardiovascular y Vascular</option>
+            <option value="plastica">Cirugía Plástica y Cierre Dérmico</option>
+            <option value="traumatologia">Traumatología y Cierre de Tensión</option>
+            <option value="ginecologia">Ginecología y Obstetricia</option>
+          </select>
+
+          <label>Capa 2: Plano Tisular / Estructura:</label>
+          <select id="capa2" disabled>
+            <option value="">-- Primero elija Especialidad en Capa 1 --</option>
+          </select>
+
+          <div id="resultadoFiltro" class="cascade-result">
+            Capa 3: Seleccione las capas anteriores para ver la recomendación...
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================================================================
+           VISTA 4: QUIRÓFANO BLINDADO (SEMANA 3: RESERVA ANTI-XSS & COLA TÁCTIL)
+           ================================================================== -->
+      <section id="pane-quirofano" class="view-pane">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; height: 100%;">
+
+          <!-- Mini-Bloque 1: Reserva Anti-XSS -->
+          <div
+            style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; display: flex; flex-direction: column;">
+            <h4 style="font-size: 13px; color: var(--text-main); margin-bottom: 6px;">🛡️ Reserva Quirófano (Anti-XSS)
+            </h4>
+            <form id="pwaFormReserva">
+              <input type="text" id="pwaClienteNombre" placeholder="Cirujano o equipo..."
+                style="padding: 8px; margin-bottom: 6px; background: #090e1a; border: 1px solid var(--border-color); color: #fff; border-radius: 6px; font-size: 12px; width: 100%;"
+                required>
+              <select id="pwaSalaSelect"
+                style="padding: 8px; margin-bottom: 8px; background: #090e1a; border: 1px solid var(--border-color); color: #fff; border-radius: 6px; font-size: 12px; width: 100%;">
+                <option value="Quirófano Central 1 (08:00 hrs)">Quirófano Central 1 (08:00 hrs)</option>
+                <option value="Quirófano Laparoscopía 2 (10:30 hrs)">Quirófano Laparoscopía 2 (10:30 hrs)</option>
+                <option value="Quirófano Vascular 3 (14:00 hrs)">Quirófano Vascular 3 (14:00 hrs)</option>
+              </select>
+              <button type="submit" class="btn-add-mini"
+                style="width: 100%; background: var(--success); padding: 8px; font-size: 12px;">Confirmar
+                Reserva</button>
+            </form>
+
+            <button id="pwaBtnTestXSS"
+              style="background: #7c3aed; color: #fff; border: none; padding: 6px; border-radius: 4px; font-size: 10.5px; font-weight: bold; cursor: pointer; margin-top: 6px;">
+              🧪 Probar Ataque XSS (&lt;script&gt;alert('XSS')&lt;/script&gt;)
+            </button>
+
+            <ul id="pwaListaReservas"
+              style="list-style: none; padding-left: 0; overflow-y: auto; max-height: 110px; margin-top: 8px;">
+              <li
+                style="background: #090e1a; padding: 6px 8px; border-radius: 4px; border-left: 2px solid var(--success); font-size: 11px; margin-bottom: 4px;">
+                <strong>Dr. Choque — </strong> <span>Quirófano Central 1</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Mini-Bloque 2: Cola Quirúrgica con Botones 44px -->
+          <div
+            style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; display: flex; flex-direction: column;">
+            <h4 style="font-size: 13px; color: var(--text-main); margin-bottom: 6px;">📋 Cola Insumos (44px Táctil)</h4>
+
+            <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+              <input type="text" id="pwaInputSutura" placeholder="Sutura urgente..."
+                style="flex: 1; padding: 8px; background: #090e1a; border: 1px solid var(--border-color); color: #fff; border-radius: 6px; font-size: 12px;">
+              <button id="pwaBtnPedirSutura" class="btn-tactil"
+                style="height: 44px; min-height: 44px; padding: 0 12px; font-size: 12px;">+ Pedir</button>
+            </div>
+
+            <div id="pwaListaSuturas" style="overflow-y: auto; max-height: 160px;">
+              <div class="fila-sutura" style="padding: 6px 8px;">
+                <span class="titulo-truncado" style="font-size: 12px;">Polipropileno 5-0 BV-1 vascular</span>
+                <button class="btn-tactil btn-quitar"
+                  style="min-width: 44px; min-height: 44px; width: 44px; height: 44px;">✕</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ==================================================================
+           VISTA 5: CALCULADOR DE TARIFAS Y EL GRAN BOTÓN DORADO
+           ================================================================== -->
+      <section id="pane-calculador" class="view-pane">
+        <div class="calc-pane-content">
+          <div>
+            <h3 style="font-size: 16px; margin-bottom: 10px; color: #ffffff;">🧮 Calculador Quirúrgico en Vivo</h3>
+
+            <div class="calc-box-inner">
+              <div class="calc-row-item">
+                <span style="font-size: 13px; color: var(--text-muted);">Sutura Seleccionada:</span>
+                <strong style="color: #38bdf8; font-size: 14px;" id="calcItemTitle">Poliglactina 910</strong>
+              </div>
+
+              <div class="calc-row-item">
+                <span style="font-size: 13px; color: var(--text-muted);">Precio Unitario (Caja x 12):</span>
+                <span style="font-size: 14px; font-weight: bold;"><span id="calcItemPrice">180</span> BOB</span>
+              </div>
+
+              <div class="calc-row-item">
+                <span style="font-size: 13px; color: var(--text-muted);">Cantidad de Cajas:</span>
+                <div class="counter-stepper">
+                  <button class="btn-step" id="btnMinus">-</button>
+                  <input type="number" id="boxQty" class="step-val" value="1" min="1" max="100">
+                  <button class="btn-step" id="btnPlus">+</button>
+                </div>
+              </div>
+
+              <div class="total-display-large">
+                <small style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Monto Total de
+                  Cotización:</small>
+                <div><span id="calcTotalLarge">180</span> <small style="font-size: 16px; color: #ffffff;">BOB</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 15px;">
+            <button id="btnLaunchModal" class="btn-golden-action">
+              <span>⚡</span> PROCESAR PEDIDO RELÁMPAGO (COTIZAR)
+            </button>
+            <small
+              style="display: block; text-align: center; color: var(--text-muted); font-size: 10px; margin-top: 6px;">
+              ⏱️ Inicia temporizador asíncrono expirable de 30 segundos (Reto PRO Viernes)
+            </small>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================================================================
+           VISTA 6: CONTACTO PWA CON VALIDACIÓN
+           ================================================================== -->
+      <section id="pane-contacto" class="view-pane" style="align-items: center; justify-content: center;">
+        <div class="contact-pane-content">
+          <h3 style="font-size: 15px; margin-bottom: 8px; color: #ffffff;">✉️ Solicitud Médica y Muestras PWA</h3>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px;">Validación en tiempo real con
+            expresiones regulares y animaciones jQuery:</p>
+
+          <form id="pwaForm">
+            <label style="font-size: 11.5px; color: #cbd5e1;">Nombre del Médico o Institución:</label>
+            <input type="text" id="nombreInput" placeholder="Ej. Dra. Laura Méndez - Hospital Obrero" required>
+            <div id="errNombre" class="error-badge">⚠️ Ingrese su nombre o institución médica.</div>
+
+            <label style="font-size: 11.5px; color: #cbd5e1;">Correo Electrónico:</label>
+            <input type="email" id="correoInput" placeholder="contacto@clinica.com" required>
+            <div id="errCorreo" class="error-badge">⚠️ Ingrese un correo electrónico válido.</div>
+
+            <button type="submit" class="btn-add-mini"
+              style="width: 100%; padding: 10px; font-size: 13px; background: var(--primary); margin-top: 6px;">
+              Enviar Requerimiento a MATERMED
+            </button>
+          </form>
+
+          <div id="successBox"
+            style="display: none; background: #064e3b; color: #6ee7b7; border: 1px solid #059669; padding: 10px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-top: 10px; text-align: center;">
+            ✅ ¡Solicitud recibida! Un asesor quirúrgico se contactará a la brevedad.
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ======================================================================
+         3. BARRA INFERIOR FIJA TIPO APP (BOTTOM APP BAR - CERO SCROLL)
+         ====================================================================== -->
+    <nav class="bottom-app-bar">
+      <button class="tab-btn active" data-target="pane-showcase">
+        <span class="tab-icon">🏠</span>
+        <span class="tab-label">Showcase</span>
+      </button>
+
+      <button class="tab-btn" data-target="pane-catalogo">
+        <span class="tab-icon">📦</span>
+        <span class="tab-label">Catálogo (15)</span>
+      </button>
+
+      <button class="tab-btn" data-target="pane-filtro">
+        <span class="tab-icon">🔍</span>
+        <span class="tab-label">Filtro</span>
+      </button>
+
+      <button class="tab-btn" data-target="pane-quirofano">
+        <span class="tab-icon">🛡️</span>
+        <span class="tab-label">Quirófano</span>
+      </button>
+
+      <button class="tab-btn" data-target="pane-calculador">
+        <span class="tab-icon">🧮</span>
+        <span class="tab-label">Calculador</span>
+      </button>
+
+      <button class="tab-btn" data-target="pane-contacto">
+        <span class="tab-icon">✉️</span>
+        <span class="tab-label">Contacto</span>
+      </button>
+    </nav>
+
+  </div><!-- /.app-wrapper -->
+
+  <!-- MODAL DE CONFIRMACIÓN CON TEMPORIZADOR EXPIRABLE DE 30 SEGUNDOS -->
+  <div id="modalCotizacion" class="modal-overlay">
+    <div class="modal-content">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+        <h4 style="font-size: 15px; color: #ffffff;">Confirmar Cotización Quirúrgica</h4>
+        <button id="closeModalBtn"
+          style="background: none; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer;">&times;</button>
+      </div>
+
+      <div class="timer-ribbon">
+        <span>⏱️ Tarifa Flash Expirable:</span>
+        <span id="temporizadorVisual" style="font-family: monospace; font-size: 16px;">00:30s</span>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; margin: 10px 0;">
+        <p><strong>Producto:</strong> <span id="modalProdTitle">Poliglactina 910</span></p>
+        <p><strong>Cajas:</strong> <span id="modalProdQty">1</span> Caja(s) x 12 unidades</p>
+        <p><strong>Monto Total:</strong> <span id="modalProdTotal"
+            style="color: var(--accent-gold); font-weight: bold; font-size: 15px;">180 BOB</span></p>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;">
+        <button id="cancelModalBtn"
+          style="background: #475569; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+          Cancelar
+        </button>
+        <button id="confirmOrderBtn"
+          style="background: #16a34a; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 800; cursor: pointer; font-size: 12px;">
+          Confirmar Pedido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD Toast Alert -->
+  <div id="toastAlert" class="toast-hud">
+    ✅ ¡Operación realizada con éxito!
+  </div>
+
+</body>
+
+</html>
