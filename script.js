@@ -1,383 +1,552 @@
 /**
  * ==============================================================================
- * MATERMED - SUTURAS QUIRÚRGICAS | LÓGICA SEMANA 1
- * Diseño Web II • UPDS 2026 • Ing. Miguel Angel Cruz Ramos
- * 
- * Contenido:
- * 1. DOM Nativo: Modo Oscuro, Menú Hamburguesa, Filtrado Frontend y Validación.
- * 2. Bitácora de Eventos (Día 1 y 2): Event Bubbling, Delegación, Teclado y Checkout.
- * 3. jQuery: Acordeón, Selector Temático PRO, Calculador y Modal con Temporizador (30s).
+ * MATERMED - PORTAL WEB QUIRÚRGICO UNIFICADO (SCRIPT MAESTRO)
+ * Diseño Web II (SIS-0141) • UPDS 2026 • Ing. Miguel Angel Cruz Ramos
+ *
+ * Arquitectura de Vista Única:
+ * - #loginScreen: Inicio de sesión (medico, trabajador, admin).
+ * - #appContent: Vista única unificada cuyo núcleo es el Catálogo de Suturas.
+ * - Al iniciar sesión con cualquier usuario, solo cambia el nombre y rol
+ *   mostrado en el navbar/barra de sesión; todas las funciones permanecen visibles.
  * ==============================================================================
  */
 
-// Estado global del calculador
-let productoActual = {
-  nombre: 'Poliglactina 910',
-  precio: 180
+const APP_STATE = {
+  currentRole: null,
+  catalogo: [],
+  categoriaActiva: 'todos',
+  busquedaTexto: '',
+  productoCalculador: { nombre: 'Poliglactina 910 (Tipo Vicryl)', precio: 180 },
+  temporizadorModal: null,
+  segundosRestantes: 30
 };
 
-// Variable para el temporizador regresivo del modal (Reto PRO Viernes)
-let intervaloTemporizador = null;
-let tiempoRestante = 30;
+const CREDENCIALES = {
+  medico: '123',
+  doctor: '123',
+  trabajador: '123',
+  instrumentador: '123',
+  admin: '123',
+  administrador: '123'
+};
 
-/* ==========================================================================
-   1. DOM NATIVO: MODO OSCURO (EJEMPLO 1 GUÍA DOM)
-   ========================================================================== */
-const themeBtn = document.getElementById('themeBtn');
-const themeIcon = document.getElementById('themeIcon');
-const themeText = document.getElementById('themeText');
+const ROL_MAP = {
+  medico: 'medico',
+  doctor: 'medico',
+  trabajador: 'trabajador',
+  instrumentador: 'trabajador',
+  admin: 'admin',
+  administrador: 'admin'
+};
 
-if (themeBtn) {
-  themeBtn.addEventListener('click', () => {
-    // Alterna la clase dark-mode en el body
-    document.body.classList.toggle('dark-mode');
-    
-    const esOscuro = document.body.classList.contains('dark-mode');
-    themeIcon.textContent = esOscuro ? '☀️' : '🌙';
-    themeText.textContent = esOscuro ? 'Modo Claro' : 'Modo Oscuro';
+const ROLES_INFO = {
+  medico: {
+    icon: '👨‍⚕️',
+    name: 'Dr. Médico Cirujano',
+    pillText: '👨‍⚕️ Médico',
+    pillClass: 'role-medico'
+  },
+  trabajador: {
+    icon: '🩺',
+    name: 'Lic. Instrumentador Quirúrgico',
+    pillText: '🩺 Trabajador',
+    pillClass: 'role-trabajador'
+  },
+  admin: {
+    icon: '🛡️',
+    name: 'Director General MATERMED',
+    pillText: '🛡️ Administrador',
+    pillClass: 'role-admin'
+  }
+};
+
+const DATOS_CASCADA = {
+  cardio: {
+    planos: [
+      { id: 'vasos', label: 'Anastomosis de Grandes Vasos', sutura: 'Polipropileno (Prolene) 5-0 o 6-0 con doble aguja vascular' },
+      { id: 'pericardio', label: 'Cierre Pericárdico y Valvular', sutura: 'Polidioxanona (PDS) o Poliglactina 910' }
+    ]
+  },
+  plastica: {
+    planos: [
+      { id: 'subdermico', label: 'Cierre Subdérmico Estético', sutura: 'Poliglactina 910 4-0 aguja triangular cortante' },
+      { id: 'epidermico', label: 'Sutura Epidérmica Cutánea', sutura: 'Nylon Quirúrgico 5-0 o 6-0 monofilamento' }
+    ]
+  },
+  general: {
+    planos: [
+      { id: 'aponeurosis', label: 'Fascia Muscular y Aponeurosis', sutura: 'Polidioxanona (PDS) o Poliglactina 910 Calibre 1' },
+      { id: 'gastro', label: 'Anastomosis Gastrointestinal', sutura: 'Seda Quirúrgica 3-0 o Catgut Crómico 2-0' }
+    ]
+  },
+  ginecologia: {
+    planos: [
+      { id: 'utero', label: 'Histerorrafia (Cesárea)', sutura: 'Catgut Crómico 1 o Poliglactina 910 Calibre 1' },
+      { id: 'mucosa', label: 'Episiotomía / Mucosa Vaginal', sutura: 'Catgut Crómico 2-0 o Poliglactina 910 2-0' }
+    ]
+  }
+};
+
+// Respaldo offline si se abre directamente sin servidor HTTP
+const FALLBACK_SUTURAS = [
+  { id: 'SUT-001', titulo: 'Poliglactina 910 (Tipo Vicryl)', tipo: 'Absorbible Sintética Trenzada', genero: 'Cirugía General', calibre: 'USP 2-0', precio: 180, portada: 'images/poliglactina.svg', descripcion: 'Recubierta con estearato de calcio. Absorción completa entre 56 y 70 días.' },
+  { id: 'SUT-002', titulo: 'Poliglactina 910 Delicada', tipo: 'Absorbible Sintética Trenzada', genero: 'Ginecología & Obstetricia', calibre: 'USP 3-0', precio: 175, portada: 'images/poliglactina.svg', descripcion: 'Fácil anudado y paso tisular suave en tejidos friables.' },
+  { id: 'SUT-003', titulo: 'Nylon Monofilamento (Poliamida)', tipo: 'No Absorbible Monofilamento', genero: 'Cirugía Plástica', calibre: 'USP 4-0', precio: 125, portada: 'images/nylon.svg', descripcion: 'Mínima reacción tisular y resultado estético superior en cierre dérmico.' },
+  { id: 'SUT-004', titulo: 'Nylon Monofilamento Cutáneo', tipo: 'No Absorbible Monofilamento', genero: 'Traumatología', calibre: 'USP 2-0', precio: 120, portada: 'images/nylon.svg', descripcion: 'Gran resistencia a la tracción para cierre de piel en extremidades.' },
+  { id: 'SUT-005', titulo: 'Seda Negra Trenzada', tipo: 'No Absorbible Natural', genero: 'Cirugía General', calibre: 'USP 0', precio: 110, portada: 'images/seda.svg', descripcion: 'Tratada con cera y silicona para una maniobrabilidad excepcional.' },
+  { id: 'SUT-006', titulo: 'Seda Negra Microquirúrgica', tipo: 'No Absorbible Natural', genero: 'Oftalmología', calibre: 'USP 6-0', precio: 150, portada: 'images/seda.svg', descripcion: 'Microaguja espatulada de corte lateral para planos corneales.' },
+  { id: 'SUT-007', titulo: 'Polipropileno Cardiovascular (Prolene)', tipo: 'No Absorbible Monofilamento', genero: 'Cirugía Cardiovascular', calibre: 'USP 5-0', precio: 210, portada: 'images/polipropileno.svg', descripcion: 'Superficie de arrastre prácticamente nula y retención indefinida.' },
+  { id: 'SUT-008', titulo: 'Polipropileno Vascular Fino', tipo: 'No Absorbible Monofilamento', genero: 'Cirugía Cardiovascular', calibre: 'USP 6-0', precio: 225, portada: 'images/polipropileno.svg', descripcion: 'Diseñado para anastomosis de arterias coronarias.' },
+  { id: 'SUT-009', titulo: 'Catgut Crómico de Precisión', tipo: 'Absorbible Natural', genero: 'Ginecología & Obstetricia', calibre: 'USP 2-0', precio: 140, portada: 'images/catgut.svg', descripcion: 'Sales de cromo que retrasan la acción de colagenasas (90 días).' },
+  { id: 'SUT-010', titulo: 'Catgut Simple Quirúrgico', tipo: 'Absorbible Natural Rápida', genero: 'Cirugía General', calibre: 'USP 3-0', precio: 115, portada: 'images/catgut.svg', descripcion: 'Absorción rápida en 70 días para tejido celular subcutáneo.' },
+  { id: 'SUT-011', titulo: 'Polidioxanona Monofilamento (PDS)', tipo: 'Absorbible Sintética Monofilamento', genero: 'Cirugía General', calibre: 'USP 1', precio: 240, portada: 'images/polidioxanona.svg', descripcion: 'Soporte tensil por más de 6 semanas para cierre de aponeurosis.' },
+  { id: 'SUT-012', titulo: 'Polidioxanona Pediátrica (PDS)', tipo: 'Absorbible Sintética Monofilamento', genero: 'Cirugía Pediátrica', calibre: 'USP 4-0', precio: 230, portada: 'images/polidioxanona.svg', descripcion: 'Crecimiento tisular asistido sin compresión rígida.' }
+];
+
+// ==============================================================================
+// 1. REGISTRO SERVICE WORKER Y ESTADO DE RED (PWA)
+// ==============================================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('[SW MATERMED] Registrado:', reg.scope))
+      .catch(err => console.warn('[SW MATERMED] Registro omitido:', err));
   });
 }
 
-/* ==========================================================================
-   2. DOM NATIVO: MENÚ HAMBURGUESA RESPONSIVE (EJEMPLO 3 GUÍA DOM)
-   ========================================================================== */
-const burguerBtn = document.getElementById('burguerBtn');
-const navMenu = document.getElementById('navMenu');
+function actualizarEstadoRedPC() {
+  const $net = $('#estadoRedPC');
+  if (!$net.length) return;
+  if (navigator.onLine) {
+    $net.text('🟢 En Línea').removeClass('offline');
+  } else {
+    $net.text('🟠 Modo Offline').addClass('offline');
+  }
+}
 
-if (burguerBtn && navMenu) {
-  burguerBtn.addEventListener('click', () => {
-    navMenu.classList.toggle('show');
+// ==============================================================================
+// 2. AUTENTICACIÓN Y ACTUALIZACIÓN DE NAVBAR (UNA SOLA VISTA)
+// ==============================================================================
+function intentarLogin(usuario, password) {
+  const u = usuario.trim().toLowerCase();
+  const p = password.trim();
+  if (CREDENCIALES[u] && CREDENCIALES[u] === p) {
+    iniciarSesion(ROL_MAP[u]);
+    return true;
+  }
+  return false;
+}
+
+function iniciarSesion(rol) {
+  if (!ROLES_INFO[rol]) rol = 'medico';
+  APP_STATE.currentRole = rol;
+  localStorage.setItem('matermed_role', rol);
+  localStorage.setItem('matermed_rol', rol);
+  localStorage.setItem('matermed_nombre', ROLES_INFO[rol].name);
+
+  aplicarPerfilEnNavbar(rol);
+
+  $('#loginScreen').fadeOut(250, () => {
+    $('#appContent').fadeIn(250);
+    logEvent('LOGIN', `Sesión iniciada como ${ROLES_INFO[rol].name}`);
   });
+}
 
-  // Cerrar el menú al hacer clic en un enlace en pantallas móviles
-  navMenu.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', () => {
-      if (window.innerWidth <= 768) {
-        navMenu.classList.remove('show');
-      }
+function cerrarSesion() {
+  APP_STATE.currentRole = null;
+  localStorage.removeItem('matermed_role');
+  localStorage.removeItem('matermed_rol');
+  localStorage.removeItem('matermed_nombre');
+
+  $('#appContent').fadeOut(200, () => {
+    $('#loginUser').val('');
+    $('#loginPass').val('');
+    $('#loginError').hide();
+    $('#loginScreen').fadeIn(250);
+  });
+}
+
+function aplicarPerfilEnNavbar(rol) {
+  const info = ROLES_INFO[rol] || ROLES_INFO.medico;
+  $('#roleIcon').text(info.icon);
+  $('#roleCurrentName').text(info.name);
+  $('#navbarRolePill')
+    .text(info.pillText)
+    .removeClass('role-medico role-trabajador role-admin')
+    .addClass(info.pillClass);
+}
+
+// ==============================================================================
+// 3. CATÁLOGO ASÍNCRONO (FETCH JSON + LAZY LOADING + FILTROS + BÚSQUEDA)
+// ==============================================================================
+function obtenerCategoriaFiltro(item) {
+  const genero = (item.genero || '').toLowerCase();
+  const tipo = (item.tipo || '').toLowerCase();
+  if (genero.includes('cardiovascular')) return 'cardio';
+  if (tipo.includes('no absorbible')) return 'no-absorbible';
+  return 'absorbible';
+}
+
+function cargarCatalogoAsync() {
+  fetch('data/suturas.json')
+    .then(res => {
+      if (!res.ok) throw new Error('Error HTTP ' + res.status);
+      return res.json();
+    })
+    .then(data => {
+      APP_STATE.catalogo = data;
+      renderizarCatalogo();
+      logEvent('CATALOGO_FETCH', `${data.length} suturas cargadas desde suturas.json`);
+    })
+    .catch(() => {
+      APP_STATE.catalogo = FALLBACK_SUTURAS;
+      renderizarCatalogo();
+      logEvent('CATALOGO_OFFLINE', `${FALLBACK_SUTURAS.length} suturas cargadas en modo local`);
     });
+}
+
+function renderizarCatalogo() {
+  const $grid = $('#suturasGrid');
+  $grid.empty();
+
+  const texto = APP_STATE.busquedaTexto.toLowerCase();
+  const catFiltro = APP_STATE.categoriaActiva;
+
+  const filtradas = APP_STATE.catalogo.filter(item => {
+    const cat = obtenerCategoriaFiltro(item);
+    const coincideCat = catFiltro === 'todos' || cat === catFiltro;
+    const textoItem = `${item.titulo} ${item.genero} ${item.calibre} ${item.tipo}`.toLowerCase();
+    const coincideTexto = !texto || textoItem.includes(texto);
+    return coincideCat && coincideTexto;
+  });
+
+  if (filtradas.length === 0) {
+    $grid.append($('<p>').css({ color: 'var(--text-muted)', gridColumn: '1 / -1', textAlign: 'center', padding: '24px' })
+      .text('No se encontraron suturas que coincidan con el filtro actual.'));
+    return;
+  }
+
+  filtradas.forEach(item => {
+    const cat = obtenerCategoriaFiltro(item);
+    const tagClass = cat === 'cardio' ? 'tag-cardio' : (cat === 'no-absorbible' ? 'tag-no-absorbible' : 'tag-absorbible');
+
+    const $card = $('<div>').addClass('card').attr('data-categoria', cat);
+    const $imgWrap = $('<div>').addClass('card-img-wrap');
+    const $img = $('<img>').attr({
+      src: item.portada || 'images/poliglactina.svg',
+      alt: item.titulo,
+      loading: 'lazy'
+    });
+    $imgWrap.append($img);
+
+    const $body = $('<div>').addClass('card-body');
+    const $tag = $('<span>').addClass(`card-tag ${tagClass}`).text(item.tipo || 'Sutura Quirúrgica');
+    const $title = $('<h3>').addClass('card-title').text(item.titulo);
+    const $meta = $('<small>').css({ color: 'var(--primary)', fontWeight: '700', marginBottom: '6px' })
+      .text(`${item.genero || 'General'} • ${item.calibre || 'USP 2-0'}`);
+    const $desc = $('<p>').addClass('card-text').text(item.descripcion || '');
+    const $price = $('<div>').addClass('card-price').text(`${item.precio} BOB / caja`);
+    const $btn = $('<button>')
+      .attr('type', 'button')
+      .addClass('btn-card btn-cotizar-card')
+      .data('nombre', item.titulo)
+      .data('precio', item.precio)
+      .text('⚡ Cotizar Flash');
+
+    $body.append($tag, $title, $meta, $desc, $price, $btn);
+    $card.append($imgWrap, $body);
+    $grid.append($card);
   });
 }
 
-/* ==========================================================================
-   3. DOM NATIVO: FILTRADO DE SUTURAS POR CATEGORÍA (EJEMPLO 2 GUÍA DOM)
-   ========================================================================== */
-function filtrar(categoria) {
-  // 1. Seleccionar todas las tarjetas de sutura
-  const tarjetas = document.querySelectorAll('.card');
-  
-  // 2. Actualizar el estado visual activo de los botones de filtro
-  const botones = document.querySelectorAll('.filter-btn');
-  botones.forEach(btn => btn.classList.remove('active'));
-  if (window.event && window.event.target) {
-    window.event.target.classList.add('active');
+// ==============================================================================
+// 4. INICIALIZACIÓN Y EVENTOS DELEGADOS (.off().on())
+// ==============================================================================
+$(document).ready(function () {
+  actualizarEstadoRedPC();
+  $(window).off('online offline').on('online offline', actualizarEstadoRedPC);
+
+  // Recuperar sesión activa si ya inició
+  const rolGuardado = localStorage.getItem('matermed_role') || localStorage.getItem('matermed_rol');
+  if (rolGuardado && ROLES_INFO[rolGuardado]) {
+    APP_STATE.currentRole = rolGuardado;
+    aplicarPerfilEnNavbar(rolGuardado);
+    $('#loginScreen').hide();
+    $('#appContent').show();
   }
 
-  // 3. Recorrer cada tarjeta evaluando su atributo data-categoria en el DOM
-  tarjetas.forEach(card => {
-    const catCard = card.dataset.categoria;
-    if (categoria === 'todos' || catCard === categoria) {
-      card.style.display = 'flex'; // Visible
+  // Cargar catálogo asíncrono
+  cargarCatalogoAsync();
+
+  // Login rápido (1 clic)
+  $(document).off('click', '.quick-btn').on('click', '.quick-btn', function () {
+    iniciarSesion($(this).data('rol'));
+  });
+
+  // Login tradicional
+  $('#loginForm').off('submit').on('submit', function (e) {
+    e.preventDefault();
+    const u = $('#loginUser').val();
+    const p = $('#loginPass').val();
+    if (intentarLogin(u, p)) {
+      $('#loginError').hide();
     } else {
-      card.style.display = 'none'; // Oculto
+      $('#loginError')
+        .text('⚠️ Credenciales incorrectas. Use: medico / 123, trabajador / 123 o admin / 123')
+        .slideDown();
     }
   });
 
-  // Registrar en la bitácora si existe
-  if (typeof logEvent === 'function') {
-    logEvent('FILTRO_DOM', `El usuario filtró el catálogo por: [${categoria.toUpperCase()}]`);
-  }
-}
-
-/* ==========================================================================
-   4. DOM NATIVO: VALIDACIÓN DINÁMICA DE FORMULARIO (EJEMPLO 4 GUÍA DOM)
-   ========================================================================== */
-const contactForm = document.getElementById('contactForm');
-const alertaBox = document.getElementById('alertaBox');
-
-if (contactForm && alertaBox) {
-  contactForm.addEventListener('submit', (e) => {
-    // Detener recarga de la página predeterminada
-    e.preventDefault();
-
-    const nombre = document.getElementById('doctorNombre').value.trim();
-    const email = document.getElementById('doctorEmail').value.trim();
-    const especialidad = document.getElementById('especialidadSelect').value;
-
-    // Validación básica de campos obligatorios
-    if (nombre === '' || email === '' || especialidad === '') {
-      alertaBox.innerHTML = `
-        <div class="msg-error">
-          ⚠️ Por favor, complete su nombre, correo electrónico y especialidad médica para procesar el requerimiento.
-        </div>
-      `;
-      return;
-    }
-
-    // Validación de formato de correo
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      alertaBox.innerHTML = `
-        <div class="msg-error">
-          ⚠️ Ingrese un formato de correo electrónico válido (ejemplo: doctor@hospital.com).
-        </div>
-      `;
-      return;
-    }
-
-    // Inyección de mensaje de éxito en el DOM
-    alertaBox.innerHTML = `
-      <div class="msg-exito">
-        ✅ ¡Solicitud recibida con éxito! Estimado(a) <strong>${nombre}</strong>, el departamento quirúrgico de MATERMED coordinará la entrega de muestras para <em>${especialidad}</em>.
-      </div>
-    `;
-
-    // Registrar en la bitácora
-    logEvent('FORM_CONTACTO', `Solicitud de muestras enviada por: ${nombre} (${email})`);
-
-    // Limpiar formulario
-    contactForm.reset();
+  // Mostrar/ocultar contraseña
+  $('#btnTogglePass').off('click').on('click', function () {
+    const $inp = $('#loginPass');
+    $inp.attr('type', $inp.attr('type') === 'password' ? 'text' : 'password');
   });
-}
 
-/* ==========================================================================
-   5. BITÁCORA DE EVENTOS JS (DÍA 1 Y DÍA 2)
-   ========================================================================== */
-const liveContainer = document.getElementById('liveContainer');
-const chatInput = document.getElementById('chatInput');
-const logOutput = document.getElementById('logOutput');
-const variantSelect = document.getElementById('variantSelect');
-const orderForm = document.getElementById('orderForm');
-const logDia2 = document.getElementById('logDia2');
+  // Cerrar sesión
+  $('#btnLogout').off('click').on('click', cerrarSesion);
 
-// Función unificada para registrar eventos en la consola visual del Día 1
-function logEvent(tipo, mensaje) {
-  if (!logOutput) return;
-  const hora = new Date().toLocaleTimeString();
-  const item = document.createElement('div');
-  item.className = 'log-item';
-  item.innerHTML = `<strong>[${hora}] ${tipo}:</strong> ${mensaje}`;
-  logOutput.prepend(item);
-}
+  // Menú Hamburguesa
+  $('#burguerBtn').off('click').on('click', function () {
+    $('#navMenu').toggleClass('show');
+  });
 
-// Función para registrar transacciones en el Día 2
-function addLogDia2(tipo, msg) {
-  if (!logDia2) return;
-  const t = new Date().toLocaleTimeString();
-  const row = document.createElement('div');
-  row.className = 'log-item';
-  row.innerHTML = `<strong>[${t}] ${tipo}:</strong> ${msg}`;
-  logDia2.prepend(row);
-}
+  $('#navMenu').off('click', 'a').on('click', 'a', function () {
+    $('#navMenu a').removeClass('active');
+    $(this).addClass('active');
+    if (window.innerWidth <= 768) $('#navMenu').removeClass('show');
+  });
 
-// DÍA 1: Delegación de Eventos mediante Event Bubbling en #liveContainer
-if (liveContainer) {
-  // Escucha de clicks en contenedor padre
-  liveContainer.addEventListener('click', (e) => {
-    // Captura de clics en ofertas relámpago con data-prod
-    if (e.target.dataset.prod) {
-      logEvent('OFERTA_CLICK', `Sutura relámpago seleccionada: "${e.target.dataset.prod}"`);
-    } 
-    // Captura de likes / prioridad quirúrgica con data-action
-    else if (e.target.dataset.action === 'like') {
-      logEvent('LIKE_STREAM', '¡El cirujano/asistente envió un ❤️ de Interés Quirúrgico Prioritario!');
+  // Modo Oscuro / Claro
+  $('#themeBtn').off('click').on('click', function () {
+    $('body').toggleClass('dark-mode');
+    const osc = $('body').hasClass('dark-mode');
+    $('#themeIcon').text(osc ? '☀️' : '🌙');
+    $('#themeText').text(osc ? 'Modo Claro' : 'Modo Oscuro');
+    logEvent('TEMA', osc ? 'Modo Oscuro activado' : 'Modo Claro activado');
+  });
+
+  // Filtros de Catálogo (Event Delegation)
+  $('#filterBar').off('click', '.filter-btn').on('click', '.filter-btn', function () {
+    $('.filter-btn').removeClass('active');
+    $(this).addClass('active');
+    APP_STATE.categoriaActiva = $(this).data('cat');
+    renderizarCatalogo();
+    logEvent('FILTRO_CATALOGO', `Categoría: ${APP_STATE.categoriaActiva}`);
+  });
+
+  // Buscador en vivo (keyup)
+  $('#buscarSutura').off('keyup').on('keyup', function () {
+    APP_STATE.busquedaTexto = $(this).val().trim();
+    renderizarCatalogo();
+    logEvent('BUSQUEDA_KEYUP', `Término: "${APP_STATE.busquedaTexto}"`);
+  });
+
+  // Seleccionar sutura desde el catálogo para el calculador
+  $('#suturasGrid').off('click', '.btn-cotizar-card').on('click', '.btn-cotizar-card', function () {
+    const nombre = $(this).data('nombre');
+    const precio = parseFloat($(this).data('precio')) || 180;
+    APP_STATE.productoCalculador = { nombre, precio };
+    $('#nombreProductoCalc').text(`${nombre} (${precio} BOB/caja)`);
+    const cant = parseInt($('#hrs').val(), 10) || 1;
+    $('#total').text(cant * precio);
+    mostrarToast(`Seleccionado: ${nombre}`);
+    logEvent('COTIZADOR_SELECCION', `${nombre} (${precio} BOB)`);
+    document.getElementById('calculador').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // Filtro en Cascada de 3 Niveles
+  $('#cascadaEspecialidad').off('change').on('change', function () {
+    const esp = $(this).val();
+    const $plano = $('#cascadaPlano');
+    $plano.empty().append('<option value="">-- Seleccionar Plano Tisular --</option>');
+    $('#resultadoCascada').hide();
+
+    if (esp && DATOS_CASCADA[esp]) {
+      DATOS_CASCADA[esp].planos.forEach(p => {
+        const $opt = $('<option>').val(p.id).text(p.label).data('sutura', p.sutura);
+        $plano.append($opt);
+      });
+      $plano.prop('disabled', false);
+      logEvent('CASCADA_NIVEL_1', `Especialidad: ${esp}`);
+    } else {
+      $plano.prop('disabled', true);
     }
   });
 
-  // Captura de doble clic (dblclick) para urgencias de quirófano
-  liveContainer.addEventListener('dblclick', (e) => {
-    if (e.target.dataset.prod) {
-      logEvent('URGENCIA_QUIRÚRGICA', `⚡ Pedido preferente urgente registrado para: ${e.target.dataset.prod}`);
+  $('#cascadaPlano').off('change').on('change', function () {
+    const sutura = $(this).find(':selected').data('sutura');
+    if (sutura) {
+      $('#textoRecomendacion').text(sutura);
+      $('#resultadoCascada').fadeIn();
+      logEvent('CASCADA_NIVEL_2', `Recomendación: ${sutura}`);
+    } else {
+      $('#resultadoCascada').hide();
     }
   });
-}
 
-// DÍA 1: Captura de eventos de teclado (keyup) en el Chat Quirúrgico
-if (chatInput) {
-  chatInput.addEventListener('keyup', (e) => {
-    if (e.key === 'Enter' && e.target.value.trim() !== '') {
-      logEvent('CHAT_ENVIADO', `Mensaje público en el Live: "${e.target.value.trim()}"`);
-      e.target.value = '';
-    } else if (e.target.value.length > 0 && e.target.value.length % 5 === 0) {
-      logEvent('CHAT_INPUT', `Escribiendo consulta médica: "${e.target.value}"`);
-    }
-  });
-}
-
-// DÍA 2: Evento 'change' en selector de variantes
-if (variantSelect) {
-  variantSelect.addEventListener('change', (e) => {
-    addLogDia2('CAMBIO_VARIANTE', `Especialista seleccionó: ${e.target.value}`);
-  });
-}
-
-// DÍA 2: Evento 'submit' con preventDefault() en pedido rápido
-if (orderForm) {
-  orderForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const variante = variantSelect.value;
-    const usuario = document.getElementById('userTikTok').value.trim();
-    
-    if (!usuario) return;
-
-    addLogDia2('COMPRA_EXITOSA', `🎉 Pedido relámpago confirmado para <strong>${usuario}</strong> &bull; [${variante}]`);
-    
-    // Registrar también en bitácora general Día 1
-    logEvent('PEDIDO_LIVE', `Orden confirmada para: ${usuario}`);
-
-    // Mostrar feedback visual
-    mostrarToast(`¡Pedido confirmado para ${usuario}!`);
-    
-    orderForm.reset();
-  });
-}
-
-/* ==========================================================================
-   6. FUNCIONALIDADES JQUERY (SEMANA 1 - JUEVES Y VIERNES)
-   ========================================================================== */
-$(document).ready(function() {
-
-  // JUEVES: Acordeón interactivo para ver Ficha Técnica (.slideToggle)
-  $('.accordion-btn').click(function() {
-    $(this).next('.accordion-panel').slideToggle('fast');
-    // Cambiar la flecha visual
-    let $arrow = $(this).find('span:last-child');
-    $arrow.text($arrow.text() === '▼' ? '▲' : '▼');
-  });
-
-  // RETO PRO JUEVES (+0.5 pts): Cambio dinámico de temática y fondos con jQuery
-  $('.btn-theme-selector').click(function() {
-    const tema = $(this).data('theme');
-    const $box = $('#lineaQuirurgicaBox');
-
-    // Remover todas las clases de temas previos
-    $box.removeClass('theme-absorbible theme-no-absorbible theme-cardio');
-
-    if (tema === 'absorbible') {
-      $box.addClass('theme-absorbible');
-      $('#themeLineIcon').html('🟣');
-      $('#themeLineTitle').html('Línea Absorbible Especializada');
-      $('#themeLineDesc').html('Polímeros de <strong>Poliglactina 910 y Polidioxanona</strong> para degradación segura por hidrólisis.');
-    } else if (tema === 'no-absorbible') {
-      $box.addClass('theme-no-absorbible');
-      $('#themeLineIcon').html('🟢');
-      $('#themeLineTitle').html('Línea No Absorbible de Cierre');
-      $('#themeLineDesc').html('Monofilamentos de <strong>Nylon y Seda Natural</strong> con mínima reactividad tisular y excelente paso dérmico.');
-    } else if (tema === 'cardio') {
-      $box.addClass('theme-cardio');
-      $('#themeLineIcon').html('🔵');
-      $('#themeLineTitle').html('Línea Cardiovascular & Especial');
-      $('#themeLineDesc').html('Suturas monofilamento de <strong>Polipropileno (Prolene)</strong> de fuerza tensil permanente para vasos sanguíneos.');
-    }
-
-    logEvent('TEMA_JQUERY', `Línea temática cambiada con jQuery a: [${tema.toUpperCase()}]`);
-  });
-
-  // VIERNES: Calculador dinámico de precios en tiempo real con jQuery
-  $('#hrs').on('input', function() {
-    let cantidad = parseInt($(this).val()) || 1;
-    if (cantidad < 1) {
-      cantidad = 1;
+  // Calculador en vivo
+  $('#hrs').off('input').on('input', function () {
+    let cant = parseInt($(this).val(), 10) || 1;
+    if (cant < 1) {
+      cant = 1;
       $(this).val(1);
     }
-    const total = cantidad * productoActual.precio;
-    $('#total').text(total);
+    $('#total').text(cant * APP_STATE.productoCalculador.precio);
   });
 
-  // VIERNES + RETO PRO: Abrir Modal de Cotización con Temporizador de 30 segundos
-  $('#btnModal').click(function() {
-    const cantidad = parseInt($('#hrs').val()) || 1;
-    const total = cantidad * productoActual.precio;
-
-    $('#modalProdNombre').text(productoActual.nombre);
-    $('#modalCantidad').text(cantidad);
-    $('#modalMonto').text(total + ' BOB');
-
-    // Iniciar temporizador regresivo de 30 segundos
+  // Modal Oferta Flash 30s
+  $('#btnModal').off('click').on('click', function () {
+    const cant = parseInt($('#hrs').val(), 10) || 1;
+    const total = cant * APP_STATE.productoCalculador.precio;
+    $('#modalProdNombre').text(APP_STATE.productoCalculador.nombre);
+    $('#modalCantidad').text(cant);
+    $('#modalMonto').text(`${total} BOB`);
     iniciarTemporizadorModal();
-
-    // Mostrar modal con efecto suave de jQuery
-    $('#modalCotizacion').fadeIn(250).css('display', 'flex');
-
-    logEvent('MODAL_ABIERTO', `Modal de cotización abierto para ${cantidad} caja(s) de ${productoActual.nombre}`);
+    $('#modalCotizacion').fadeIn(200).css('display', 'flex');
   });
 
-  // Cerrar modal al presionar X o Cancelar
-  $('#closeModalBtn, #cancelModalBtn').click(function() {
-    cerrarModal();
-  });
-
-  // Confirmar compra en el Modal
-  $('#confirmOrderBtn').click(function() {
-    const cant = $('#modalCantidad').text();
-    const prod = $('#modalProdNombre').text();
-    const tot = $('#modalMonto').text();
-
+  $('#cancelModalBtn').off('click').on('click', function () {
     detenerTemporizador();
-    $('#modalCotizacion').fadeOut(250);
-
-    mostrarToast(`✅ Cotización de ${cant} caja(s) de ${prod} (${tot}) procesada.`);
-    logEvent('COTIZACION_CONFIRMADA', `Cotización aprobada: ${cant} cajas de ${prod} por ${tot}`);
-    addLogDia2('COTIZACION_MODAL', `Reserva confirmada en modal: ${prod} [${tot}]`);
+    $('#modalCotizacion').fadeOut(200);
   });
 
+  $('#confirmOrderBtn').off('click').on('click', function () {
+    detenerTemporizador();
+    $('#modalCotizacion').fadeOut(200);
+    const prod = $('#modalProdNombre').text();
+    const cant = $('#modalCantidad').text();
+    mostrarToast(`✅ Cotización confirmada: ${cant}x ${prod}`);
+    logEvent('COMPRA_FLASH', `Confirmada: ${cant}x ${prod}`);
+  });
+
+  // Reserva de Quirófano Anti-XSS (.text())
+  $('#formReserva').off('submit').on('submit', function (e) {
+    e.preventDefault();
+    const nombre = $('#clienteNombre').val().trim();
+    const sala = $('#salaSelect').val();
+    if (!nombre) return;
+
+    const $item = $('<li>').addClass('item-reserva');
+    const $strong = $('<strong>').text(`${nombre} — `);
+    const $span = $('<span>').text(sala);
+    $item.append($strong, $span);
+    $('#listaReservas').prepend($item);
+
+    this.reset();
+    mostrarToast('🛡️ Reserva registrada de forma segura (Anti-XSS).');
+    logEvent('RESERVA_ANTI_XSS', `Turno seguro: ${nombre} → ${sala}`);
+  });
+
+  $('#btnTestXSS').off('click').on('click', function () {
+    $('#clienteNombre').val("<script>alert('XSS!')</script>");
+    $('#formReserva').submit();
+  });
+
+  // Cola Quirúrgica Táctil (>= 44px + truncado seguro + .text())
+  $('#btnPedirSutura').off('click').on('click', function () {
+    const txt = $('#inputSutura').val().trim();
+    if (!txt) return;
+
+    const $fila = $('<div>').addClass('fila-sutura');
+    const $tit = $('<span>').addClass('titulo-truncado').text(txt);
+    const $acc = $('<div>').addClass('cola-actions');
+    $acc.append(
+      $('<button>').attr({ type: 'button', title: 'Despachar' }).addClass('btn-tactil btn-despachar').text('✓'),
+      $('<button>').attr({ type: 'button', title: 'Eliminar' }).addClass('btn-tactil btn-quitar').text('✕')
+    );
+    $fila.append($tit, $acc);
+    $('#listaSuturas').prepend($fila);
+    $('#inputSutura').val('');
+    mostrarToast('📋 Insumo añadido a la cola.');
+    logEvent('COLA_AGREGAR', txt);
+  });
+
+  $('#listaSuturas').off('click', '.btn-despachar').on('click', '.btn-despachar', function () {
+    const $fila = $(this).closest('.fila-sutura');
+    const nombre = $fila.find('.titulo-truncado').text();
+    $fila.fadeOut(200, function () { $(this).remove(); });
+    mostrarToast(`🚀 Despachado: ${nombre}`);
+    logEvent('COLA_DESPACHO', nombre);
+  });
+
+  $('#listaSuturas').off('click', '.btn-quitar').on('click', '.btn-quitar', function () {
+    const $fila = $(this).closest('.fila-sutura');
+    $fila.fadeOut(200, function () { $(this).remove(); });
+    mostrarToast('🗑️ Retirado de la cola.');
+  });
+
+  // Limpiar Bitácora
+  $('#btnLimpiarLog').off('click').on('click', function () {
+    $('#logOutput').empty().append($('<div>').addClass('log-item').text('[Sistema] Bitácora reiniciada.'));
+  });
+
+  // Formulario de Contacto Validado (sin .html() con input de usuario)
+  $('#contactForm').off('submit').on('submit', function (e) {
+    e.preventDefault();
+    const doc = $('#doctorNombre').val().trim();
+    const esp = $('#especialidadSelect').val();
+    if (!doc) return;
+
+    const $box = $('#alertaBox').empty();
+    const $alert = $('<div>').addClass('msg-exito');
+    $alert.append(
+      document.createTextNode('✅ Solicitud enviada con éxito para '),
+      $('<strong>').text(doc),
+      document.createTextNode(` (${esp}).`)
+    );
+    $box.append($alert);
+    this.reset();
+    logEvent('CONTACTO_SUBMIT', `Solicitud de ${doc} (${esp})`);
+  });
 });
 
-// Función para seleccionar producto desde la tarjeta hacia el calculador
-function seleccionarParaCalculador(nombre, precio) {
-  productoActual.nombre = nombre;
-  productoActual.precio = precio;
-
-  $('#nombreProductoCalc').text(`${nombre} (${precio} BOB/caja)`);
-  const cant = parseInt($('#hrs').val()) || 1;
-  $('#total').text(cant * precio);
-
-  // Desplazar suavemente hasta la sección del calculador
-  document.getElementById('calculador').scrollIntoView({ behavior: 'smooth' });
-
-  logEvent('SELECCION_PRODUCTO', `Producto fijado en calculador: ${nombre} (${precio} BOB)`);
-}
-
-// Iniciar temporizador de 30 segundos (Reto PRO Viernes: setInterval)
+// ==============================================================================
+// 5. TEMPORIZADOR MODAL 30s, BITÁCORA SEGURA Y TOAST
+// ==============================================================================
 function iniciarTemporizadorModal() {
-  detenerTemporizador(); // Limpiar si hubiera uno previo
-  tiempoRestante = 30;
-  actualizarTextoTemporizador();
+  detenerTemporizador();
+  APP_STATE.segundosRestantes = 30;
+  actualizarTextoTimer();
 
-  intervaloTemporizador = setInterval(() => {
-    tiempoRestante--;
-    actualizarTextoTemporizador();
-
-    if (tiempoRestante <= 0) {
+  APP_STATE.temporizadorModal = setInterval(() => {
+    APP_STATE.segundosRestantes--;
+    actualizarTextoTimer();
+    if (APP_STATE.segundosRestantes <= 0) {
       detenerTemporizador();
-      // Cerrar modal automáticamente con .fadeOut() y alertar
-      $('#modalCotizacion').fadeOut('slow');
-      alert('⚠️ Tiempo agotado: La tarifa de cotización relámpago ha expirado (30 segundos). Por favor calcule nuevamente.');
-      logEvent('TARIFA_EXPIRADA', 'El temporizador de 30s finalizó. Modal cerrado automáticamente.');
+      $('#modalCotizacion').fadeOut(250);
+      mostrarToast('⚠️ Tarifa Flash Expirada (30s).');
+      logEvent('TARIFA_EXPIRADA', 'El temporizador de 30s concluyó sin confirmación');
     }
   }, 1000);
 }
 
 function detenerTemporizador() {
-  if (intervaloTemporizador) {
-    clearInterval(intervaloTemporizador);
-    intervaloTemporizador = null;
+  if (APP_STATE.temporizadorModal) {
+    clearInterval(APP_STATE.temporizadorModal);
+    APP_STATE.temporizadorModal = null;
   }
 }
 
-function actualizarTextoTemporizador() {
-  const segStr = tiempoRestante < 10 ? `0${tiempoRestante}` : tiempoRestante;
-  $('#temporizadorVisual').text(`00:${segStr}s`);
+function actualizarTextoTimer() {
+  const s = APP_STATE.segundosRestantes;
+  $('#temporizadorVisual').text(`00:${s < 10 ? '0' + s : s}s`);
 }
 
-function cerrarModal() {
-  detenerTemporizador();
-  $('#modalCotizacion').fadeOut(250);
+function logEvent(tipo, mensaje) {
+  const $log = $('#logOutput');
+  if (!$log.length) return;
+  const hora = new Date().toLocaleTimeString();
+  const $row = $('<div>').addClass('log-item');
+  $row.append(
+    $('<strong>').text(`[${hora}] ${tipo}: `),
+    document.createTextNode(mensaje)
+  );
+  $log.prepend($row);
 }
 
-// Mostrar Toast Alert de notificación
 function mostrarToast(mensaje) {
-  const $toast = $('#toastAlert');
-  $toast.text(mensaje);
-  $toast.stop(true, true).slideDown(300).delay(3500).fadeOut(400);
+  const $t = $('#toastAlert');
+  $t.text(mensaje);
+  $t.stop(true, true).slideDown(250).delay(3000).fadeOut(350);
 }
